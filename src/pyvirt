@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# vim: fenc=utf-8 ff=unix ft=python ts=4 sw=4 sts=4 si et :
+
+import argparse
+import subprocess
+
+ORIG_VMNAME = "ubuntu2204"
+IMG_DIR = "/var/lib/libvirt/images"
+IMG_EXT = "qcow2"
+OS_VARIANT = "ubuntu22.04"
+NW_BRIDGE = "virbr0"
+ISO_IMG = "ubuntu-22.04.3-live-server-amd64.iso"
+
+DISK_NAME = "{}.{}".format(ORIG_VMNAME, IMG_EXT)
+LOCATION = "{}/{}".format(IMG_DIR, ISO_IMG)
+
+# clone-vms.sh, remove-vms.sh
+VOL_PREFIX = "ubuntu2204"
+
+def get_parser():
+    p = argparse.ArgumentParser(description="virsh manager")
+    sp = p.add_subparsers(
+        title="subcommands", description="subcommand description")
+
+    # install subcommand
+    p_inst = sp.add_parser("install", help="install vm")
+    p_inst.add_argument(
+        "--name", type=str, help="Name of guest instance", default=ORIG_VMNAME)
+    p_inst.add_argument(
+        "--ram", type=int,
+        help="Mem size in MiB (default is {})".format(1024*8), default=1024*8)
+    p_inst.add_argument("--img-dir", type=str, help="", default=IMG_DIR)
+    p_inst.add_argument("--disk-name", type=str, help="", default=DISK_NAME)
+    p_inst.add_argument("--disk-size", type=int, help="", default=200)
+    p_inst.add_argument("--vcpus", type=int, help="", default=8)
+    p_inst.add_argument("--dry-run", action="store_true")
+    p_inst.set_defaults(func=install)
+
+    # clone subcommand
+    p_clone = sp.add_parser("clone", help="clone vm")
+    p_clone.set_defaults(func=clone)
+
+    # remove subcommand
+    p_rm = sp.add_parser("remove", help="remove vm")
+    p_rm.set_defaults(func=remove)
+
+    return p.parse_args()
+
+
+def install(args):
+    cmd = [
+        "virt-install",
+        "--name", args.name,
+        "--ram", str(args.ram),
+        "--disk", "path={}/{},size={}".format(args.img_dir, args.disk_name, args.disk_size),
+        "--vcpus", str(args.vcpus),
+        "--os-variant", OS_VARIANT,
+        "--network", "bridge={}".format(NW_BRIDGE),
+        "--graphics", "none",
+        "--console", "pty,target_type=serial",
+        "--location", "{},kernel=casper/vmlinuz,initrd=casper/initrd".format(LOCATION),
+        "--extra-args", 'console=ttyS0,115200n8'
+    ]
+
+    if args.dry_run is not True:
+        subprocess.run(cmd)
+    else:
+        print(" ".join(cmd))
+
+
+def clone(args):
+    print("clone it")
+
+
+def remove(args):
+    print("remove it")
+
+
+def main():
+    args = get_parser()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
+
