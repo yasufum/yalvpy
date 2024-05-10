@@ -1,4 +1,8 @@
 # created by virtualenv automatically
 bin/*
 lib/*
+dist/*
+*.egg-info
+lvpy/__pycache__
+lib64
 pyvenv.cfg

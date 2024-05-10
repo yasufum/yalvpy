@@ -74,11 +74,12 @@ def get_parser():
         "--file", type=str, help="(Optional) Filepath of volume of the removed VM")
     p_rm.set_defaults(func=remove)
 
-    return p.parse_args()
+    return p
 
 
 def install(args):
     cmd = [
+        "sudo",
         "virt-install",
         "--name", args.name,
         "--ram", str(args.ram),
@@ -107,6 +108,7 @@ def clone(args):
 
         cmds = [
             [
+                "sudo",
                 "virt-clone",
                 "--original", args.original,
                 "--name", name,
@@ -114,9 +116,9 @@ def clone(args):
             ],
             # NOTE: hostname can also be changed by using `virt-sysprep`, but
             # cause an unexpected another change by which sshd cannot be launched.
-            ["virt-customize", "-d", name, "--hostname", name,],
-            ["virt-sysprep", "-d", name, "--enable", "machine-id",],
-            ["virsh", "start", name,],
+            ["sudo", "virt-customize", "-d", name, "--hostname", name,],
+            ["sudo", "virt-sysprep", "-d", name, "--enable", "machine-id",],
+            ["sudo", "virsh", "start", name,],
         ]
 
         for cmd in cmds:
@@ -135,9 +137,9 @@ def remove(args):
             fname = args.file
 
         cmds = [
-            ["virsh", "shutdown", name,],
-            ["virsh", "undefine", name,],
-            ["rm", fname],
+            ["sudo", "virsh", "shutdown", name,],
+            ["sudo", "virsh", "undefine", name,],
+            ["sudo", "rm", fname],
         ]
         if args.dry_run is not True:
             for cmd in cmds:
@@ -149,10 +151,12 @@ def remove(args):
 
 
 def main():
-    args = get_parser()
-    args.func(args)
-
+    p = get_parser()
+    args = p.parse_args()
+    if args == argparse.Namespace():
+        p.parse_args(['--help'])
+    else:
+        args.func(args)
 
 if __name__ == "__main__":
     main()
-
