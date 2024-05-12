@@ -3,6 +3,6 @@ bin/*
 lib/*
 dist/*
 *.egg-info
-lvpy/__pycache__
+yalvpy/__pycache__
 lib64
 pyvenv.cfg

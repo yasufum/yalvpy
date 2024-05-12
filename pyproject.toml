@@ -16,7 +16,7 @@ classifiers = [
 version = "0.0.1"
 
 [project.scripts]
-lvpy = "lvpy.main:main"
+yalvpy = "yalvpy.main:main"
 
 [tool.setuptools.packages]
 find = {}
