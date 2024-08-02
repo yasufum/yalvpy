@@ -6,18 +6,22 @@ import argparse
 import subprocess
 
 # TODO: Revise how manage constants.
-ORIG_VMNAME = "ubuntu2204"
+DISTRO = "ubuntu"
+DIST_VER = ("22", "04", "4")
 IMG_DIR = "/var/lib/libvirt/images"
-IMG_EXT = "qcow2"
-OS_VARIANT = "ubuntu22.04"
 NW_BRIDGE = "virbr0"
-ISO_IMG = "ubuntu-22.04.3-live-server-amd64.iso"
+IMG_EXT = "qcow2"
 
-DISK_NAME = "{}.{}".format(ORIG_VMNAME, IMG_EXT)
-LOCATION = "{}/{}".format(IMG_DIR, ISO_IMG)
+ORIG_VMNAME = f"{DISTRO}-orig"
+OS_VARIANT = "{}{}.{}".format(DISTRO, DIST_VER[0], DIST_VER[1])
+ISO_IMG = "{}-{}.{}.{}-live-server-amd64.iso".format(
+        DISTRO, DIST_VER[0], DIST_VER[1], DIST_VER[2])
+LOCATION = f"{IMG_DIR}/{ISO_IMG}"
+
+DISK_NAME = f"{ORIG_VMNAME}.{IMG_EXT}"
 
 # clone-vms.sh, remove-vms.sh
-VOL_PREFIX = "ubuntu2204"
+VOL_PREFIX = "{}{}{}{}".format(DISTRO, DIST_VER[0], DIST_VER[1], DIST_VER[2])
 
 
 def message(msg):
@@ -34,22 +38,22 @@ def get_parser():
     p_inst = sp.add_parser("install", help="install vm")
     p_inst.add_argument(
         "name", type=str, default=ORIG_VMNAME,
-        help="Name of guest instance")
+        help="name of guest instance")
     p_inst.add_argument(
         "--ram", type=int,
-        help="Mem size in MiB (default is {})".format(1024*8), default=1024*8)
+        help="mem size in MiB (default is {})".format(1024*8), default=1024*8)
     p_inst.add_argument("--img-dir", type=str, default=IMG_DIR,
-                        help="libvirt image dir (default is {})".format(IMG_DIR))
-    p_inst.add_argument(
-        "--disk-name", type=str, default=DISK_NAME,
-        help="The name of image file")
+                        help=f"libvirt image dir (default is {IMG_DIR})")
+    p_inst.add_argument("--img", type=str, default=ISO_IMG,
+                        help=f"the name of ISO image (default is {ISO_IMG})")
     p_inst.add_argument(
         "--disk-size", type=int, default=200,
-        help="The size of volume")
+        help="the size of volume (default is 200)")
     p_inst.add_argument(
-        "--vcpus", type=int, help="The num of CPUs", default=8)
+        "--vcpus", type=int, default=8,
+        help="the num of CPUs (default is 8)" )
     p_inst.add_argument(
-        "--dry-run", action="store_true", help="Show the command, but do nothing")
+        "--dry-run", action="store_true", help="show the command, but do nothing")
     p_inst.set_defaults(func=install)
 
     # clone subcommand
@@ -83,13 +87,13 @@ def install(args):
         "virt-install",
         "--name", args.name,
         "--ram", str(args.ram),
-        "--disk", "path={}/{},size={}".format(args.img_dir, args.disk_name, args.disk_size),
+        "--disk", f"path={args.img_dir}/{DISK_NAME},size={args.disk_size}",
         "--vcpus", str(args.vcpus),
         "--os-variant", OS_VARIANT,
-        "--network", "bridge={}".format(NW_BRIDGE),
+        "--network", f"bridge={NW_BRIDGE}",
         "--graphics", "none",
         "--console", "pty,target_type=serial",
-        "--location", "{},kernel=casper/vmlinuz,initrd=casper/initrd".format(LOCATION),
+        "--location", f"{LOCATION},kernel=casper/vmlinuz,initrd=casper/initrd",
         "--extra-args", 'console=ttyS0,115200n8'
     ]
 
