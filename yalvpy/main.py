@@ -3,6 +3,7 @@
 # vim: fenc=utf-8 ff=unix ft=python ts=4 sw=4 sts=4 si et :
 
 import argparse
+import re
 import subprocess
 
 # TODO: Revise how manage constants.
@@ -78,6 +79,9 @@ def get_parser():
         "--file", type=str, help="(Optional) Filepath of volume of the removed VM")
     p_rm.set_defaults(func=remove)
 
+    p_list = sp.add_parser("list", help="show list of vms")
+    p_list.set_defaults(func=list)
+
     return p
 
 
@@ -152,6 +156,37 @@ def remove(args):
         else:
             for cmd in cmds:
                 message(" ".join(cmd))
+
+
+def _net_dhcp_leases(network="default"):
+    '''Return a list of DHCP entries
+
+    The bunch of entries is retrieved with `virsh net-dhcp-leases` command.
+    '''
+
+    cmd = ["sudo", "virsh", "net-dhcp-leases", network]
+    entries = (subprocess.check_output(cmd, text=True)).split("\n")
+    res = []
+    for i in range(2, len(entries)):
+        params = (re.sub("\\s+", " ", entries[i])).split(" ")
+        if len(params) == 8:
+            res.append({
+                "expiry_time": "{} {}".format(params[1], params[2]),
+                "mac": params[3],
+                "proto": params[4],
+                "ipaddr": params[5],
+                "hostname": params[6],
+                "id": params[7]
+                })
+    return res
+
+
+def list(args):
+    # Print header
+    # print("hostname\tipaddr")
+
+    for ent in _net_dhcp_leases():
+        print(f"{ent["hostname"]}\t{ent["ipaddr"]}")
 
 
 def main():
