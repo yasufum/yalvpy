@@ -21,8 +21,6 @@ ISO_IMG = "{}-{}.{}.{}-live-server-amd64.iso".format(
         DISTRO, DIST_VER[0], DIST_VER[1], DIST_VER[2])
 LOCATION = f"{IMG_DIR}/{ISO_IMG}"
 
-DISK_NAME = f"{ORIG_VMNAME}.{IMG_EXT}"
-
 # clone-vms.sh, remove-vms.sh
 VOL_PREFIX = "{}{}{}{}".format(DISTRO, DIST_VER[0], DIST_VER[1], DIST_VER[2])
 
@@ -95,12 +93,13 @@ def get_parser():
 
 
 def install(args):
+    diskname = f"{args.name}.{IMG_EXT}"
     cmd = [
         "sudo",
         "virt-install",
         "--name", args.name,
         "--ram", str(args.ram),
-        "--disk", f"path={args.img_dir}/{DISK_NAME},size={args.disk_size}",
+        "--disk", f"path={args.img_dir}/{diskname},size={args.disk_size}",
         "--vcpus", str(args.vcpus),
         "--os-variant", OS_VARIANT,
         "--network", f"bridge={NW_BRIDGE}",
