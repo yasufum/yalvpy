@@ -3,8 +3,10 @@
 # vim: fenc=utf-8 ff=unix ft=python ts=4 sw=4 sts=4 si et :
 
 import argparse
+import os
 import re
 import subprocess
+import sys
 
 # TODO: Revise how manage constants.
 DISTRO = "ubuntu"
@@ -79,8 +81,15 @@ def get_parser():
         "--file", type=str, help="(Optional) Filepath of volume of the removed VM")
     p_rm.set_defaults(func=remove)
 
+    # list subcommand
     p_list = sp.add_parser("list", help="show list of vms")
     p_list.set_defaults(func=list)
+
+    # ssh subcommand
+    p_ssh = sp.add_parser("ssh", help="login to a host")
+    p_ssh.add_argument("destination")
+    p_ssh.add_argument("command", type=str, nargs='*')
+    p_ssh.set_defaults(func=ssh)
 
     return p
 
@@ -174,7 +183,7 @@ def _net_dhcp_leases(network="default"):
                 "expiry_time": "{} {}".format(params[1], params[2]),
                 "mac": params[3],
                 "proto": params[4],
-                "ipaddr": params[5],
+                "ipaddr": params[5].split("/")[0],
                 "hostname": params[6],
                 "id": params[7]
                 })
@@ -187,6 +196,29 @@ def list(args):
 
     for ent in _net_dhcp_leases():
         print(f"{ent["hostname"]}\t{ent["ipaddr"]}")
+
+
+def ssh(args):
+    user = os.environ["USER"]
+    dest = args.destination.split("@")
+    if len(dest) == 2:
+        user = dest[0]
+        hostname = dest[1]
+    elif len(dest) == 1:
+        hostname = dest[0]
+    else:
+        print(f"Error: Invalid destination {args.destination!r}.")
+        sys.exit()
+
+    cmd = []
+    for ent in _net_dhcp_leases():
+        if hostname == ent["hostname"]:
+            cmd = ["ssh", f'{user}@{ent["ipaddr"]}']
+            if args.command is not None:
+                cmd.append(' '.join(args.command))
+            break
+    
+    subprocess.run(cmd)
 
 
 def main():
