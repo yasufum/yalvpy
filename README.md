@@ -1,6 +1,6 @@
 # yalvpy
 
-Yet another libvirt wrapper implemented in python.
+Yet another virsh wrapper implemented in python.
 
 ## Usage
 
@@ -9,19 +9,30 @@ Currently the following subcommands are supported.
 * `install`: runs `virt-install` for launching a new VM.
 * `clone`: creates new VMs from a originl template VM. 
 * `remove`: shutdown VMs and delete domains and disk files.
+* `list`: show a list of a set of hostname and IP address of each guest.
+* `ssh`: naive ssh client to enable to login with hostname
+  instead of IP address.
 
-For example, you can run `install` from `yalvpy/main.py` as below.
+For example, run `install` after installing this tool via `pip`.
+
+```sh
+# Run virt-install with the default params such as vpus or mem .
+$ yalvpy install VMNAME
+```
+
+You can run `install` from `yalvpy/main.py` without installing as below.
 A `VMNAME` corresponds to a domain of libvirt.
 
 ```sh
 $ python3 yalvpy/main.py install VMNAME
 ```
 
-Or just run with the main command after install via `pip`.
 
-```sh
-$ yalvpy install VMNAME
-```
+## Required packages
+
+* libvirt
+* virsh
+* virt-install
 
 ## For developers
 
