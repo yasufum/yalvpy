@@ -5,10 +5,11 @@
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 
-# TODO: Revise how manage constants.
+# TODO(yasufum): Revise how manage constants.
 DISTRO = "ubuntu"
 DIST_VER = ("22", "04", "4")
 IMG_DIR = "/var/lib/libvirt/images"
@@ -24,9 +25,28 @@ LOCATION = f"{IMG_DIR}/{ISO_IMG}"
 # clone-vms.sh, remove-vms.sh
 VOL_PREFIX = "{}{}{}{}".format(DISTRO, DIST_VER[0], DIST_VER[1], DIST_VER[2])
 
+# Required commands for running this tool.
+REQUIRED_CMDS = ["virsh", "virt-install", "virt-clone", "virt-customize",
+                 "virt-sysprep"]
+
 
 def message(msg):
     print("[command] {}".format(msg))
+
+
+def _check_required_cmds():
+    '''Check if require commands are installed'''
+
+    missing_cmds = []
+    for c in REQUIRED_CMDS:
+        if shutil.which(c) is None:
+            missing_cmds.append(c)
+
+    if missing_cmds:
+        print("Error: You're required to install the tools below for "
+              "running this application.")
+        print("  {}".format('  '.join(missing_cmds)))
+        sys.exit(1)
 
 
 # TODO: Revise help messages.
@@ -42,7 +62,7 @@ def get_parser():
         help="name of guest instance")
     p_inst.add_argument(
         "--ram", type=int,
-        help="mem size in MiB (default is {})".format(1024*8), default=1024*8)
+   help="mem size in MiB (default is {})".format(1024*8), default=1024*8)
     p_inst.add_argument("--img-dir", type=str, default=IMG_DIR,
                         help=f"libvirt image dir (default is {IMG_DIR})")
     p_inst.add_argument("--img", type=str, default=ISO_IMG,
@@ -221,6 +241,8 @@ def ssh(args):
 
 
 def main():
+    _check_required_cmds()
+
     p = get_parser()
     args = p.parse_args()
     if args == argparse.Namespace():

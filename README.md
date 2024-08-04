@@ -30,9 +30,18 @@ $ python3 yalvpy/main.py install VMNAME
 
 ## Required packages
 
+* qemu-kvm
 * libvirt
 * virsh
 * virt-install
+* guestfish (libguestfs-tools)
+
+You can install all the packages above by following the installation.
+
+```sh
+sudo apt install qemu-kvm libvirt-daemon-system \
+     virtinst libguestfs-tools
+```
 
 ## For developers
 
