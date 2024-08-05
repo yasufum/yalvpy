@@ -62,3 +62,17 @@ Install the package in editable mode at the project root.
 $ cd yalvpy
 $ pip3 install -e .
 ```
+
+### Tips
+
+#### Upload your ssh-key on a guest
+
+```sh
+$ ssh-copy-id -i $HOME/.ssh/id_ed25519.pub user@guest
+```
+
+#### Create stack user for devstack
+
+```sh
+$ ssh user@guest 'sudo bash -s' < scripts/openstack/setup-stack-user.sh
+```

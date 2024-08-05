@@ -9,5 +9,4 @@ echo "stack ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/stack
 chmod 755 /opt/stack
 
 mkdir -p /opt/stack/.ssh
-#echo "#{ssh_pub_key}" >> /opt/stack/.ssh/authorized_keys
 chown -R stack:stack /opt/stack/.ssh
