@@ -10,6 +10,7 @@ Currently the following subcommands are supported.
 * `clone`: creates new VMs from a originl template VM. 
 * `remove`: shutdown VMs and delete domains and disk files.
 * `list`: show a list of a set of hostname and IP address of each guest.
+* `dhcp-host`: update static IP address of dhcp
 * `ssh`: naive ssh client to enable to login with hostname
   instead of IP address.
 

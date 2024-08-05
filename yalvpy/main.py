@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+from xml.etree import ElementTree as et
 
 # TODO(yasufum): Revise how manage constants.
 DISTRO = "ubuntu"
@@ -109,6 +110,19 @@ def get_parser():
     p_ssh.add_argument("command", type=str, nargs='*')
     p_ssh.set_defaults(func=ssh)
 
+    # net subcommand
+    p_dhcp_host = sp.add_parser("dhcp-host", help="update static IP address of dhcp")
+    p_dhcp_host.add_argument("command", help="'add', 'delete' or 'modify'")
+    p_dhcp_host.add_argument("hostname", help="hostname")
+    p_dhcp_host.add_argument("ip", help="IP address", nargs='?')
+    p_dhcp_host.add_argument("-n", "--network", type=str, default="default",
+                             help="The name of network managed by libvirt")
+    p_dhcp_host.add_argument("--mac", help="specify mac address instead of "
+                             "retrieving from DHCP entry")
+    p_dhcp_host.add_argument(
+        "--dry-run", action="store_true", help="Show the command, but do nothing")
+    p_dhcp_host.set_defaults(func=update_dhcp_host)
+
     return p
 
 
@@ -130,6 +144,7 @@ def install(args):
     ]
 
     if args.dry_run is not True:
+        message(" ".join(cmd))
         subprocess.run(cmd)
     else:
         message(" ".join(cmd))
@@ -238,6 +253,65 @@ def ssh(args):
             break
     
     subprocess.run(cmd)
+
+
+def update_dhcp_host(args):
+    section = "ip-dhcp-host"
+
+    cmd = ["sudo", "virsh", "net-update", args.network, args.command, section]
+
+    mac = None
+    for ent in _net_dhcp_leases():
+        if ent["hostname"] == args.hostname:
+            mac = ent["mac"]
+
+    if args.command == "add":
+        cmd.append("<host mac=\"{}\" ip=\"{}\"/>".format(mac, args.ip))
+
+    elif args.command == "delete" or args.command == "modify":
+        ipaddr = None
+        cmd_xml = ["sudo", "virsh", "net-dumpxml", args.network]
+        entries = (subprocess.check_output(cmd_xml, text=True))
+        xmlent = et.fromstring(entries)
+        try:
+            for elem in xmlent.findall("./ip/dhcp/host"):
+                if mac == elem.get("mac"):
+                    if args.command == "delete":
+                        ipaddr = elem.get("ip")
+                    else:
+                        ipaddr = args.ip
+
+                elif args.mac == elem.get("mac"):
+                    if args.command == "delete":
+                        ipaddr = elem.get("ip")
+                    else:
+                        ipaddr = args.ip
+                    mac = args.mac
+
+            if ipaddr is None:
+                print("FAILED: MAC address {!r} of host {!r}".format(
+                        mac, args.hostname),
+                      "not found in the net definition.",
+                      "You can find the address with `virsh net-dumpxml {}`".format(args.network),
+                      "and specify with --mac option.")
+                sys.exit(1)
+        except Exception as e:
+            print("Error: Parsing XML failure for - {}".format(e))
+
+        cmd.append("<host mac=\"{}\" ip=\"{}\"/>".format(mac, ipaddr))
+
+    else:
+        print("Error: Invalid command {!r}.".format(args.method))
+        sys.exit(1)
+
+    cmd.append("--live")
+    cmd.append("--config")
+
+    if args.dry_run is not True:
+        message(" ".join(cmd))
+        subprocess.run(cmd)
+    else:
+        message(" ".join(cmd))
 
 
 def main():
