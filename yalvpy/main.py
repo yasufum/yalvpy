@@ -229,7 +229,7 @@ def list(args):
     # print("hostname\tipaddr")
 
     for ent in _net_dhcp_leases():
-        print(f"{ent["hostname"]}\t{ent["ipaddr"]}")
+        print("{}\t{}".format(ent["hostname"],ent["ipaddr"]))
 
 
 def ssh(args):
