@@ -65,6 +65,17 @@ $ pip3 install -e .
 
 ### Tips
 
+#### Add sudoers for running a command without password
+
+Before running a script using `sudo`, you should add your account to sudoers.
+Add a sudoers file for your account as `/etc/sudoers.d/USER`. If you have
+an account `user`, the contents of sudoers file is like as following.
+
+```
+# /etc/sudoers.d/user
+user ALL=(ALL) NOPASSWD: ALL
+```
+
 #### Upload your ssh-key on a guest
 
 ```sh
@@ -74,5 +85,22 @@ $ ssh-copy-id -i $HOME/.ssh/id_ed25519.pub user@guest
 #### Create stack user for devstack
 
 ```sh
-$ ssh user@guest 'sudo bash -s' < scripts/openstack/setup-stack-user.sh
+$ ssh user@guest 'bash -s' < scripts/openstack/setup-stack-user.sh
+```
+
+#### Install neovim
+
+Install the latest neovim.
+
+```sh
+$ ssh user@guest 'bash -s' < scripts/common/nvim.sh
+```
+
+It's recommended to install
+[LunarVim](https://www.lunarvim.org/)
+to setup your dev environment easily.
+Just Run the install script below.
+
+```sh
+bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
 ```
