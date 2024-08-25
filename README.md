@@ -36,12 +36,15 @@ $ python3 yalvpy/main.py install VMNAME
 * virsh
 * virt-install
 * guestfish (libguestfs-tools)
+* python3-venv
+* python3-pip
 
 You can install all the packages above by following the installation.
 
 ```sh
 sudo apt install qemu-kvm libvirt-daemon-system \
-     virtinst libguestfs-tools
+     virtinst libguestfs-tools \
+     python3-venv python3-pip
 ```
 
 ## For developers
@@ -60,6 +63,7 @@ Install the package in editable mode at the project root.
 
 ```sh
 $ cd yalvpy
+$ . bin/activate
 $ pip3 install -e .
 ```
 
