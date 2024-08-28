@@ -18,14 +18,14 @@ For example, run `install` after installing this tool via `pip`.
 
 ```sh
 # Run virt-install with the default params such as vpus or mem .
-$ yalvpy install VMNAME
+yalvpy install VMNAME
 ```
 
 You can run `install` from `yalvpy/main.py` without installing as below.
 A `VMNAME` corresponds to a domain of libvirt.
 
 ```sh
-$ python3 yalvpy/main.py install VMNAME
+python3 yalvpy/main.py install VMNAME
 ```
 
 
@@ -55,16 +55,16 @@ This tool provides pip installation with `setuptools` and it can be setup
 by `venv`.
 
 ```sh
-$ git clone https://github.com/yasufum/yalvpy.git
-$ pyhton3 -m venv yalvpy
+git clone https://github.com/yasufum/yalvpy.git
+pyhton3 -m venv yalvpy
 ```
 
 Install the package in editable mode at the project root.
 
 ```sh
-$ cd yalvpy
-$ . bin/activate
-$ pip3 install -e .
+cd yalvpy
+. bin/activate
+pip3 install -e .
 ```
 
 ### Tips
@@ -83,13 +83,13 @@ user ALL=(ALL) NOPASSWD: ALL
 #### Upload your ssh-key on a guest
 
 ```sh
-$ ssh-copy-id -i $HOME/.ssh/id_ed25519.pub user@guest
+ssh-copy-id -i $HOME/.ssh/id_ed25519.pub user@guest
 ```
 
 #### Create stack user for devstack
 
 ```sh
-$ ssh user@guest 'bash -s' < scripts/openstack/setup-stack-user.sh
+ssh user@guest 'bash -s' < scripts/openstack/setup-stack-user.sh
 ```
 
 #### Install neovim
@@ -97,13 +97,35 @@ $ ssh user@guest 'bash -s' < scripts/openstack/setup-stack-user.sh
 Install the latest neovim.
 
 ```sh
-$ ssh user@guest 'bash -s' < scripts/common/nvim.sh
+ssh user@guest 'bash -s' < scripts/common/nvim.sh
 ```
 
 It's recommended to install
 [LunarVim](https://www.lunarvim.org/)
 to setup your dev environment easily.
-Just Run the install script below.
+
+You'd install depending tools before LunarVim.
+
+* gcc
+* make
+* unzip
+```sh
+apt install gcc make unzip
+```
+
+* npm (https://nodejs.org/en/download/package-manager)
+
+```sh
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+nvm install 22
+```
+
+* rust
+```sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+For LunarVim, just Run the install script below.
 
 ```sh
 bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
