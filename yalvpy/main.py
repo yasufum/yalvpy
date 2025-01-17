@@ -11,24 +11,15 @@ import sys
 from xml.etree import ElementTree as et
 
 # TODO(yasufum): Revise how manage constants.
-DISTRO = "ubuntu"
-DIST_VER = ("22", "04", "4")
+IMG_EXT = "qcow2"
 IMG_DIR = "/var/lib/libvirt/images"
 NW_BRIDGE = "virbr0"
-IMG_EXT = "qcow2"
 
-ORIG_VMNAME = f"{DISTRO}-orig"
-OS_VARIANT = "{}{}.{}".format(DISTRO, DIST_VER[0], DIST_VER[1])
-ISO_IMG = "{}-{}.{}.{}-live-server-amd64.iso".format(
-        DISTRO, DIST_VER[0], DIST_VER[1], DIST_VER[2])
-LOCATION = f"{IMG_DIR}/{ISO_IMG}"
-
-# clone-vms.sh, remove-vms.sh
-VOL_PREFIX = "{}{}{}{}".format(DISTRO, DIST_VER[0], DIST_VER[1], DIST_VER[2])
+VOL_PREFIX = "yalvpy"
 
 # Required commands for running this tool.
 REQUIRED_CMDS = ["virsh", "virt-install", "virt-clone", "virt-customize",
-                 "virt-sysprep"]
+                 "virt-sysprep", "osinfo-query"]
 
 
 def message(msg):
@@ -59,15 +50,17 @@ def get_parser():
     # install subcommand
     p_inst = sp.add_parser("install", help="install vm")
     p_inst.add_argument(
-        "name", type=str, default=ORIG_VMNAME,
-        help="name of guest instance")
+        "name", type=str, help="name of guest instance")
     p_inst.add_argument(
-        "--ram", type=int,
-   help="mem size in MiB (default is {})".format(1024*8), default=1024*8)
+        "--osinfo", type=str,
+        help="Optimize guest config for a specific OS. All the list can be"
+             "referred from 'osinfo-query os'.")
+    p_inst.add_argument(
+        "--memory", type=int,
+        help="mem size in MiB (default is {})".format(1024*8), default=1024*8)
     p_inst.add_argument("--img-dir", type=str, default=IMG_DIR,
                         help=f"libvirt image dir (default is {IMG_DIR})")
-    p_inst.add_argument("--img", type=str, default=ISO_IMG,
-                        help=f"the name of ISO image (default is {ISO_IMG})")
+    p_inst.add_argument("--img", type=str, help=f"the name of ISO image.")
     p_inst.add_argument(
         "--disk-size", type=int, default=200,
         help="the size of volume (default is 200)")
@@ -85,9 +78,11 @@ def get_parser():
     p_clone.add_argument(
         "--dry-run", action="store_true", help="Show the command, but do nothing")
     p_clone.add_argument(
-        "--original", type=str, help="Name of original VM", default=ORIG_VMNAME)
+        "--original", type=str, help="Name of original VM")
     p_clone.add_argument(
         "--file", type=str, help="(Optional) Filepath of volume of the cloned VM")
+    p_clone.add_argument("--img-dir", type=str, default=IMG_DIR,
+                         help=f"libvirt image dir (default is {IMG_DIR})")
     p_clone.set_defaults(func=clone)
 
     # remove subcommand
@@ -98,6 +93,8 @@ def get_parser():
         "--dry-run", action="store_true", help="Show the command, but do nothing")
     p_rm.add_argument(
         "--file", type=str, help="(Optional) Filepath of volume of the removed VM")
+    p_rm.add_argument("--img-dir", type=str, default=IMG_DIR,
+                      help=f"libvirt image dir (default is {IMG_DIR})")
     p_rm.set_defaults(func=remove)
 
     # list subcommand
@@ -127,21 +124,44 @@ def get_parser():
 
 
 def install(args):
-    diskname = f"{args.name}.{IMG_EXT}"
+    diskname = f"{VOL_PREFIX}-{args.name}.{IMG_EXT}"
+    location = f"{args.img}"
+
+    if args.img is None:
+        print(f"Erorr: An image path with '--img' is required.")
+        sys.exit(1)
+    elif not os.path.isfile(location):
+        print(f"Erorr: No image found {args.img!r}.")
+        sys.exit(1)
+
     cmd = [
         "sudo",
         "virt-install",
         "--name", args.name,
-        "--ram", str(args.ram),
+        "--memory", str(args.memory),
         "--disk", f"path={args.img_dir}/{diskname},size={args.disk_size}",
         "--vcpus", str(args.vcpus),
-        "--os-variant", OS_VARIANT,
         "--network", f"bridge={NW_BRIDGE}",
         "--graphics", "none",
         "--console", "pty,target_type=serial",
-        "--location", f"{LOCATION},kernel=casper/vmlinuz,initrd=casper/initrd",
+        "--location", f"{location},kernel=casper/vmlinuz,initrd=casper/initrd",
         "--extra-args", 'console=ttyS0,115200n8'
     ]
+
+    if args.osinfo is not None:
+        osiq_cmd = ["osinfo-query", "os", "-f", "short-id"]
+        oslist = subprocess.run(osiq_cmd, encoding='utf-8', stdout=subprocess.PIPE)
+        flg = False
+        for osinfo in oslist.stdout.split("\n"):
+            if args.osinfo == osinfo.strip():
+                flg = True
+                break
+        if flg is not True:
+            print(f"Error: Invalid --osinfo option {args.osinfo!r}.")
+            sys.exit(1)
+
+        cmd.append("--osinfo")
+        cmd.append(args.osinfo)
 
     if args.dry_run is not True:
         message(" ".join(cmd))
@@ -153,7 +173,7 @@ def install(args):
 def clone(args):
     for name in args.name:
         if args.file is None:
-            fname = "{}/{}-{}.{}".format(IMG_DIR, VOL_PREFIX, name, IMG_EXT)
+            fname = "{}/{}-{}.{}".format(args.img_dir, VOL_PREFIX, name, IMG_EXT)
         else:
             fname = args.file
 
@@ -183,7 +203,7 @@ def clone(args):
 def remove(args):
     for name in args.name:
         if args.file is None:
-            fname = "{}/{}-{}.{}".format(IMG_DIR, VOL_PREFIX, name, IMG_EXT)
+            fname = "{}/{}-{}.{}".format(args.img_dir, VOL_PREFIX, name, IMG_EXT)
         else:
             fname = args.file
 
