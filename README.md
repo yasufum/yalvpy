@@ -18,14 +18,14 @@ For example, run `install` after installing this tool via `pip`.
 
 ```sh
 # Run virt-install with the default params such as vpus or mem .
-yalvpy install VMNAME
+yalvpy install VMNAME --img /path/to/img.iso
 ```
 
 You can run `install` from `yalvpy/main.py` without installing as below.
 A `VMNAME` corresponds to a domain of libvirt.
 
 ```sh
-python3 yalvpy/main.py install VMNAME
+python3 yalvpy/main.py install VMNAME --img /path/to/img.iso
 ```
 
 
@@ -36,6 +36,7 @@ python3 yalvpy/main.py install VMNAME
 * virsh
 * virt-install
 * guestfish (libguestfs-tools)
+* osinfo-query
 * python3-venv
 * python3-pip
 
@@ -43,7 +44,7 @@ You can install all the packages above by following the installation.
 
 ```sh
 sudo apt install qemu-kvm libvirt-daemon-system \
-     virtinst libguestfs-tools \
+     virtinst libguestfs-tools libosinfo-bin \
      python3-venv python3-pip
 ```
 
@@ -104,26 +105,28 @@ It's recommended to install
 [LunarVim](https://www.lunarvim.org/)
 to setup your dev environment easily.
 
-You'd install depending tools before LunarVim.
+You install depending tools before LunarVim.
 
 * gcc
 * make
 * unzip
-```sh
-apt install gcc make unzip
-```
+  ```sh
+  apt install gcc make unzip
+  ```
 
 * npm (https://nodejs.org/en/download/package-manager)
 
-```sh
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
-nvm install 22
-```
+  Install npm and node with nvm by specifying the version (ver 22 in this case).
+
+  ```sh
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+  nvm install 22
+  ```
 
 * rust
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
+  ```sh
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  ```
 
 For LunarVim, just Run the install script below.
 
