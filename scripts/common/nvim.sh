@@ -1,7 +1,7 @@
 #!/bin/bash
 
 TARGET_DIR=/usr/local
-DOWNLOAD=https://github.com/neovim/neovim/releases/latest/download/nvim-linux64.tar.gz
+DOWNLOAD=https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz
 ZIP=$(echo ${DOWNLOAD} | awk -F'/' '{print $NF}')
 NVIM_DIR=$(echo ${ZIP} | awk -F'.' '{print $1}')
 
