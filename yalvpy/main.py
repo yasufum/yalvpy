@@ -192,12 +192,23 @@ def clone(args):
             ["sudo", "virsh", "start", name,],
         ]
 
-        for cmd in cmds:
-            if args.dry_run is not True:
-                message(" ".join(cmd))
-                subprocess.run(cmd)
+        try:
+            for cmd in cmds:
+                if args.dry_run is not True:
+                    message(" ".join(cmd))
+                    subprocess.run(cmd, check=True)
+                else:
+                    message(" ".join(cmd))
+        except subprocess.CalledProcessError as e:
+            if e.cmd[0] == "virt-clone" or e.cmd[1] == "virt-clone":
+                ans = input("You cannot clone from a running VM."
+                            f"Shutdown '{args.original}'? [y/N]\n")
+                if ans.lower() == "y" or ans.lower() == "yes":
+                    subprocess.run(["sudo", "virsh", "shutdown", args.original,])
+                    print("Try again after the VM is down.")
             else:
-                message(" ".join(cmd))
+                # Don't care other than a failure of virt-clone.
+                pass
 
 
 def remove(args):
