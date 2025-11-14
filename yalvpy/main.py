@@ -13,7 +13,6 @@ from xml.etree import ElementTree as et
 # TODO(yasufum): Revise how manage constants.
 IMG_EXT = "qcow2"
 IMG_DIR = "/var/lib/libvirt/images"
-NW_BRIDGE = "virbr0"
 
 VOL_PREFIX = "yalvpy"
 
@@ -56,6 +55,10 @@ def get_parser():
         help="Optimize guest config for a specific OS. All the list can be"
              "referred from 'osinfo-query os'.")
     p_inst.add_argument(
+        "--os-variant", type=str,
+        help="The OS being install in the guest."
+             " Use 'virt-install --osinfo list to see the full list." )
+    p_inst.add_argument(
         "--memory", type=int,
         help="mem size in MiB (default is {})".format(1024*8), default=1024*8)
     p_inst.add_argument("--img-dir", type=str, default=IMG_DIR,
@@ -67,6 +70,9 @@ def get_parser():
     p_inst.add_argument(
         "--vcpus", type=int, default=8,
         help="the num of CPUs (default is 8)" )
+    p_inst.add_argument(
+        "--network", type=str, default="network=default",
+        help="configure a guest network interface.")
     p_inst.add_argument(
         "--dry-run", action="store_true", help="show the command, but do nothing")
     p_inst.set_defaults(func=install)
@@ -139,29 +145,45 @@ def install(args):
         "virt-install",
         "--name", args.name,
         "--memory", str(args.memory),
-        "--disk", f"path={args.img_dir}/{diskname},size={args.disk_size}",
+        "--disk",
+        "path={}/{},size={},format={}".format(
+            args.img_dir, diskname, args.disk_size, IMG_EXT),
         "--vcpus", str(args.vcpus),
-        "--network", f"bridge={NW_BRIDGE}",
+        "--network", args.network,
         "--graphics", "none",
         "--console", "pty,target_type=serial",
         "--location", f"{location},kernel=casper/vmlinuz,initrd=casper/initrd",
         "--extra-args", 'console=ttyS0,115200n8'
     ]
 
-    if args.osinfo is not None:
-        osiq_cmd = ["osinfo-query", "os", "-f", "short-id"]
-        oslist = subprocess.run(osiq_cmd, encoding='utf-8', stdout=subprocess.PIPE)
-        flg = False
-        for osinfo in oslist.stdout.split("\n"):
-            if args.osinfo == osinfo.strip():
-                flg = True
-                break
-        if flg is not True:
-            print(f"Error: Invalid --osinfo option {args.osinfo!r}.")
-            sys.exit(1)
+    # OS option can be specified with `--os-variant` or `--osinfo`.
+    # Use --os-variant and discard --osinfo if both are given.
+    os_opt = None   # --os-variant or --osinfo
+    os_opt_arg = None
+    if args.os_variant is not None:
+        os_opt = "--os-variant"
+        os_opt_arg = args.os_variant
+    elif args.osinfo is not None:
+        os_opt = "--osinfo"
+        os_opt_arg = args.osinfo
+    if os_opt is not None:
 
-        cmd.append("--osinfo")
-        cmd.append(args.osinfo)
+        def _is_os_opt_valid():
+            osiq_cmd = ["osinfo-query", "os", "-f", "short-id"]
+            oslist = subprocess.run(
+                osiq_cmd, encoding='utf-8', stdout=subprocess.PIPE)
+            flg = False
+            for osinfo in oslist.stdout.split("\n"):
+                if os_opt_arg == osinfo.strip():
+                    flg = True
+                    break
+            if flg is not True:
+                print(f"Error: OS option {os_opt_arg!r} not found.")
+                sys.exit(1)
+
+        _is_os_opt_valid()
+        cmd.append(os_opt)
+        cmd.append(os_opt_arg)
 
     if args.dry_run is not True:
         message(" ".join(cmd))
