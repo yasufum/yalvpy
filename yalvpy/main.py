@@ -8,6 +8,8 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.error
+from urllib import request
 from xml.etree import ElementTree as et
 
 # TODO(yasufum): Revise how manage constants.
@@ -63,7 +65,6 @@ def get_parser():
         help="mem size in MiB (default is {})".format(1024*8), default=1024*8)
     p_inst.add_argument("--img-dir", type=str, default=IMG_DIR,
                         help=f"libvirt image dir (default is {IMG_DIR})")
-    p_inst.add_argument("--img", type=str, help=f"the name of ISO image.")
     p_inst.add_argument(
         "--disk-size", type=int, default=200,
         help="the size of volume (default is 200)")
@@ -73,6 +74,9 @@ def get_parser():
     p_inst.add_argument(
         "--network", type=str, default="network=default",
         help="configure a guest network interface.")
+    p_inst.add_argument(
+        "--location", type=str, required=True,
+        help="distro install URL or file path fo image.")
     p_inst.add_argument(
         "--dry-run", action="store_true", help="show the command, but do nothing")
     p_inst.set_defaults(func=install)
@@ -131,14 +135,6 @@ def get_parser():
 
 def install(args):
     diskname = f"{VOL_PREFIX}-{args.name}.{IMG_EXT}"
-    location = f"{args.img}"
-
-    if args.img is None:
-        print(f"Erorr: An image path with '--img' is required.")
-        sys.exit(1)
-    elif not os.path.isfile(location):
-        print(f"Erorr: No image found {args.img!r}.")
-        sys.exit(1)
 
     cmd = [
         "sudo",
@@ -152,7 +148,6 @@ def install(args):
         "--network", args.network,
         "--graphics", "none",
         "--console", "pty,target_type=serial",
-        "--location", f"{location},kernel=casper/vmlinuz,initrd=casper/initrd",
         "--extra-args", 'console=ttyS0,115200n8'
     ]
 
@@ -166,8 +161,8 @@ def install(args):
     elif args.osinfo is not None:
         os_opt = "--osinfo"
         os_opt_arg = args.osinfo
-    if os_opt is not None:
 
+    if os_opt is not None:
         def _is_os_opt_valid():
             osiq_cmd = ["osinfo-query", "os", "-f", "short-id"]
             oslist = subprocess.run(
@@ -184,6 +179,27 @@ def install(args):
         _is_os_opt_valid()
         cmd.append(os_opt)
         cmd.append(os_opt_arg)
+
+    try:
+        if not (os.path.isfile(args.location) or request.urlopen(args.location)):
+            print(f"Error: Invalid location {args.location!r}.")
+            exit(1)
+    except urllib.error.HTTPError:
+        print(f"Error: Invalid URL {args.location!r}.")
+        exit(1)
+    except ValueError:
+        print(f"Error: Invalid file path {args.location!r}.")
+        exit(1)
+
+    cmd.append("--location")
+    ubuntu_extra_opt = "kernel=casper/vmlinuz,initrd=casper/initrd"
+    if "ubuntu" in str(os_opt_arg):
+        cmd.append(f"{args.location},{ubuntu_extra_opt}")
+    elif "ubuntu" in args.location.lower():
+        print("Guessing guest distro is Ubuntua and adding extra opt to --location ...")
+        cmd.append(f"{args.location},{ubuntu_extra_opt}")
+    else:
+        cmd.append(args.location)
 
     if args.dry_run is not True:
         message(" ".join(cmd))
