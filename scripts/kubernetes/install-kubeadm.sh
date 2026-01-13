@@ -1,9 +1,30 @@
 #!/bin/bash
 
+function get_ver() {
+  if [[ $1 =~ v([0-9]+).([0-9]+).([0-9]+)$ ]]; then
+    major_v=${BASH_REMATCH[1]}
+    minor_v=${BASH_REMATCH[2]}
+    patch_v=${BASH_REMATCH[3]}
+  else
+    echo "Invalid release version: '$RELEASE'."
+    exit
+  fi
+
+  if [ $2 -eq 3 ]; then
+    echo $major_v.$minor_v.$patch_v
+  elif [ $2 -eq 2 ]; then
+    echo $major_v.$minor_v
+  fi
+}
+
+# Install tools required in the script
+sudo apt install jq wget
+
 # Get Latest release
 RELEASE="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
 echo "Download Kubernetes tools [Release $RELEASE]"
 
+K8S_VER=$(get_ver $RELEASE 2)
 
 # Forwarding IPv4 and letting iptables see bridged traffic 
 # https://kubernetes.io/docs/setup/production-environment/container-runtimes/#forwarding-ipv4-and-letting-iptables-see-bridged-traffic
@@ -39,7 +60,7 @@ sudo apt install -y \
     nfs-common
 
 # Kubernetes Repository
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v$K8S_VER/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
 # Docker (Containerd) Repository
@@ -70,14 +91,15 @@ sudo systemctl restart containerd
 sudo systemctl enable containerd
 
 # Install CNI Plugin
-CNI_PLUGINS_VERSION="v1.6.1"
+CNI_PLUGINS_VERSION=$(curl -s https://api.github.com/repos/containernetworking/plugins/releases | jq -r '.[0].tag_name')
 ARCH="amd64"
 DEST="/opt/cni/bin"
 sudo mkdir -p "$DEST"
 curl -L "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/cni-plugins-linux-${ARCH}-${CNI_PLUGINS_VERSION}.tgz" | sudo tar -C "$DEST" -xz
 
 # Install nerdctl
-NERDCTL_VER=2.0.2
+NERDCTL_VER=$(curl -s https://api.github.com/repos/containerd/nerdctl/releases | jq -r '.[0].tag_name')
+NERDCTL_VER=$(get_ver $NERDCTL_VER 3)
 NERDCTL_TGZ=nerdctl-${NERDCTL_VER}-linux-${ARCH}.tar.gz
 wget https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VER}/${NERDCTL_TGZ}
 sudo tar Cxzvf /usr/local/bin ${NERDCTL_TGZ}
