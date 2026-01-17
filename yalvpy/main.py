@@ -321,6 +321,9 @@ def ssh(args):
                 cmd.append(' '.join(args.command))
             break
     
+    if not cmd:
+        print(f"Error: No hostname matched {hostname!r}.")
+        sys.exit()
     subprocess.run(cmd)
 
 
