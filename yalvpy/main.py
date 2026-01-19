@@ -8,6 +8,10 @@ import re
 import shutil
 import subprocess
 import sys
+import typer
+from typing import Annotated
+from typing import List
+from typing import Optional
 import urllib.error
 from urllib import request
 from xml.etree import ElementTree as et
@@ -22,6 +26,8 @@ VOL_PREFIX = "yalvpy"
 REQUIRED_CMDS = ["virsh", "virt-install", "virt-clone", "virt-customize",
                  "virt-sysprep", "osinfo-query"]
 
+
+app = typer.Typer()
 
 def message(msg):
     print("[command] {}".format(msg))
@@ -42,110 +48,80 @@ def _check_required_cmds():
         sys.exit(1)
 
 
-# TODO: Revise help messages.
-def get_parser():
-    p = argparse.ArgumentParser(description="virsh manager")
-    sp = p.add_subparsers(
-        title="subcommands", description="subcommand description")
-
-    # install subcommand
-    p_inst = sp.add_parser("install", help="install vm")
-    p_inst.add_argument(
-        "name", type=str, help="name of guest instance")
-    p_inst.add_argument(
-        "--osinfo", type=str,
-        help="Optimize guest config for a specific OS. All the list can be"
-             "referred from 'osinfo-query os'.")
-    p_inst.add_argument(
-        "--os-variant", type=str,
-        help="The OS being install in the guest."
-             " Use 'virt-install --osinfo list to see the full list." )
-    p_inst.add_argument(
-        "--memory", type=int,
-        help="mem size in MiB (default is {})".format(1024*8), default=1024*8)
-    p_inst.add_argument("--img-dir", type=str, default=IMG_DIR,
-                        help=f"libvirt image dir (default is {IMG_DIR})")
-    p_inst.add_argument(
-        "--disk-size", type=int, default=200,
-        help="the size of volume (default is 200)")
-    p_inst.add_argument(
-        "--vcpus", type=int, default=8,
-        help="the num of CPUs (default is 8)" )
-    p_inst.add_argument(
-        "--network", type=str, default="network=default",
-        help="configure a guest network interface.")
-    p_inst.add_argument(
-        "--location", type=str, required=True,
-        help="distro install URL or file path fo image.")
-    p_inst.add_argument(
-        "--dry-run", action="store_true", help="show the command, but do nothing")
-    p_inst.set_defaults(func=install)
-
-    # clone subcommand
-    p_clone = sp.add_parser("clone", help="clone vm")
-    p_clone.add_argument("name", type=str, nargs="+",
-                         help="Name of cloned VM")
-    p_clone.add_argument(
-        "--dry-run", action="store_true", help="Show the command, but do nothing")
-    p_clone.add_argument(
-        "--original", type=str, help="Name of original VM")
-    p_clone.add_argument(
-        "--file", type=str, help="(Optional) Filepath of volume of the cloned VM")
-    p_clone.add_argument("--img-dir", type=str, default=IMG_DIR,
-                         help=f"libvirt image dir (default is {IMG_DIR})")
-    p_clone.set_defaults(func=clone)
-
-    # remove subcommand
-    p_rm = sp.add_parser("remove", help="remove vm")
-    p_rm.add_argument("name", type=str, nargs="+",
-                      help="Name of a VM removed")
-    p_rm.add_argument(
-        "--dry-run", action="store_true", help="Show the command, but do nothing")
-    p_rm.add_argument(
-        "--file", type=str, help="(Optional) Filepath of volume of the removed VM")
-    p_rm.add_argument("--img-dir", type=str, default=IMG_DIR,
-                      help=f"libvirt image dir (default is {IMG_DIR})")
-    p_rm.set_defaults(func=remove)
-
-    # list subcommand
-    p_list = sp.add_parser("list", help="show list of vms")
-    p_list.set_defaults(func=list)
-
-    # ssh subcommand
-    p_ssh = sp.add_parser("ssh", help="login to a host")
-    p_ssh.add_argument("destination")
-    p_ssh.add_argument("command", type=str, nargs='*')
-    p_ssh.set_defaults(func=ssh)
-
-    # net subcommand
-    p_dhcp_host = sp.add_parser("dhcp-host", help="update static IP address of dhcp")
-    p_dhcp_host.add_argument("command", help="'add', 'delete' or 'modify'")
-    p_dhcp_host.add_argument("hostname", help="hostname")
-    p_dhcp_host.add_argument("ip", help="IP address", nargs='?')
-    p_dhcp_host.add_argument("-n", "--network", type=str, default="default",
-                             help="The name of network managed by libvirt")
-    p_dhcp_host.add_argument("--mac", help="specify mac address instead of "
-                             "retrieving from DHCP entry")
-    p_dhcp_host.add_argument(
-        "--dry-run", action="store_true", help="Show the command, but do nothing")
-    p_dhcp_host.set_defaults(func=update_dhcp_host)
-
-    return p
-
-
-def install(args):
-    diskname = f"{VOL_PREFIX}-{args.name}.{IMG_EXT}"
+@app.command()
+def install(
+    name: str = typer.Argument(help="Name of the guest instance."),
+    osinfo: Annotated[
+        str,
+        typer.Option(
+            '--osinfo',
+            help="Optimize guest config for a specific OS. All the list can bereferred from 'osinfo-query os'.")
+    ] = None,
+    os_variant: Annotated[
+        str,
+        typer.Option(
+            '--os-variant',
+            help="The OS being install in the guest. Use 'virt-install --osinfo list' to see the full list.")
+    ] = None,
+    memory: Annotated[
+        int,
+        typer.Option(
+            '--memory',
+            help="Memory size in MiB.",
+            )
+    ] = 1024*8,
+    img_dir: Annotated[
+        str,
+        typer.Option(
+            '--img-dir',
+            help="libvirt image dir.",
+            )
+    ] = IMG_DIR,
+    disk_size: Annotated[
+        int,
+        typer.Option(
+            '--disk-size',
+            help="The size of volume.",
+            )
+    ] = 200,
+    vcpus: Annotated[
+        int,
+        typer.Option(
+            '--vcpus',
+            help="The number of CPUs.",
+            )
+    ] = 8,
+    network: Annotated[
+        str,
+        typer.Option(
+            '--network',
+            help="Configure a guest network interface.",
+            )
+    ] = "network=default",
+    location: Annotated[
+        str,
+        typer.Option(
+            '--location',
+            help="Distro install URL or file path of image.",
+            )
+    ] = ...,
+    dry_run: Annotated[
+        bool,
+        typer.Option('--dry-run', help="Show the command, but do nothing.")
+    ] = False,
+):
+    diskname = f"{VOL_PREFIX}-{name}.{IMG_EXT}"
 
     cmd = [
         "sudo",
         "virt-install",
-        "--name", args.name,
-        "--memory", str(args.memory),
+        "--name", name,
+        "--memory", str(memory),
         "--disk",
         "path={}/{},size={},format={}".format(
-            args.img_dir, diskname, args.disk_size, IMG_EXT),
-        "--vcpus", str(args.vcpus),
-        "--network", args.network,
+            img_dir, diskname, disk_size, IMG_EXT),
+        "--vcpus", str(vcpus),
+        "--network", network,
         "--graphics", "none",
         "--console", "pty,target_type=serial",
         "--extra-args", 'console=ttyS0,115200n8'
@@ -155,12 +131,12 @@ def install(args):
     # Use --os-variant and discard --osinfo if both are given.
     os_opt = None   # --os-variant or --osinfo
     os_opt_arg = None
-    if args.os_variant is not None:
+    if os_variant is not None:
         os_opt = "--os-variant"
-        os_opt_arg = args.os_variant
-    elif args.osinfo is not None:
+        os_opt_arg = os_variant
+    elif osinfo is not None:
         os_opt = "--osinfo"
-        os_opt_arg = args.osinfo
+        os_opt_arg = osinfo
 
     if os_opt is not None:
         def _is_os_opt_valid():
@@ -181,45 +157,67 @@ def install(args):
         cmd.append(os_opt_arg)
 
     try:
-        if not (os.path.isfile(args.location) or request.urlopen(args.location)):
-            print(f"Error: Invalid location {args.location!r}.")
+        if not (os.path.isfile(location) or request.urlopen(location)):
+            print(f"Error: Invalid location {location!r}.")
             exit(1)
     except urllib.error.HTTPError:
-        print(f"Error: Invalid URL {args.location!r}.")
+        print(f"Error: Invalid URL {location!r}.")
         exit(1)
     except ValueError:
-        print(f"Error: Invalid file path {args.location!r}.")
+        print(f"Error: Invalid file path {location!r}.")
         exit(1)
 
     cmd.append("--location")
     ubuntu_extra_opt = "kernel=casper/vmlinuz,initrd=casper/initrd"
     if "ubuntu" in str(os_opt_arg):
-        cmd.append(f"{args.location},{ubuntu_extra_opt}")
-    elif "ubuntu" in args.location.lower():
-        print("Guessing guest distro is Ubuntua and adding extra opt to --location ...")
-        cmd.append(f"{args.location},{ubuntu_extra_opt}")
+        cmd.append(f"{location},{ubuntu_extra_opt}")
+    elif "ubuntu" in location.lower():
+        print("Guessing guest distro is Ubuntua and adding extra params "
+            f"{ubuntu_extra_opt!r} to --location option")
+        cmd.append(f"{location},{ubuntu_extra_opt}")
     else:
-        cmd.append(args.location)
+        cmd.append(location)
 
-    if args.dry_run is not True:
+    if dry_run is not True:
         message(" ".join(cmd))
         subprocess.run(cmd)
     else:
         message(" ".join(cmd))
 
 
-def clone(args):
-    for name in args.name:
-        if args.file is None:
-            fname = "{}/{}-{}.{}".format(args.img_dir, VOL_PREFIX, name, IMG_EXT)
+@app.command()
+def clone(
+    names: List[str] = typer.Argument(
+       ..., help="Name of cloned VM, or several ones separaed by a white space."),
+    original: Annotated[
+      str,
+      typer.Option('-o', '--original', help="Name of original VM.")
+    ] = ...,
+    fpath: Annotated[
+      str,
+      typer.Option('-f', '--file', help="Filepath of volume of the cloned VM.")
+    ] = None,
+    img_dir: Annotated[
+      str,
+      typer.Option('-i', '--img-dir',
+                   help="libvirt image dir.")
+    ] = IMG_DIR,
+    dry_run: Annotated[
+      bool,
+      typer.Option('--dry-run', help="Show the command, but do nothing.")
+    ] = False,
+    ):
+    for name in names:
+        if fpath is None:
+            fname = "{}/{}-{}.{}".format(img_dir, VOL_PREFIX, name, IMG_EXT)
         else:
-            fname = args.file
+            fname = fpath
 
         cmds = [
             [
                 "sudo",
                 "virt-clone",
-                "--original", args.original,
+                "--original", original,
                 "--name", name,
                 "--file", fname,
             ],
@@ -232,7 +230,7 @@ def clone(args):
 
         try:
             for cmd in cmds:
-                if args.dry_run is not True:
+                if dry_run is not True:
                     message(" ".join(cmd))
                     subprocess.run(cmd, check=True)
                 else:
@@ -240,28 +238,45 @@ def clone(args):
         except subprocess.CalledProcessError as e:
             if e.cmd[0] == "virt-clone" or e.cmd[1] == "virt-clone":
                 ans = input("You cannot clone from a running VM."
-                            f"Shutdown '{args.original}'? [y/N]\n")
+                            f"Shutdown '{original}'? [y/N]\n")
                 if ans.lower() == "y" or ans.lower() == "yes":
-                    subprocess.run(["sudo", "virsh", "shutdown", args.original,])
+                    subprocess.run(["sudo", "virsh", "shutdown", original,])
                     print("Try again after the VM is down.")
             else:
                 # Don't care other than a failure of virt-clone.
                 pass
 
 
-def remove(args):
-    for name in args.name:
-        if args.file is None:
-            fname = "{}/{}-{}.{}".format(args.img_dir, VOL_PREFIX, name, IMG_EXT)
+@app.command()
+def remove(
+    names: List[str] = typer.Argument(
+       ..., help="Name of removed VM, or several ones separaed by a white space."),
+    fpath: Annotated[
+        str,
+        typer.Option('-f', '--file', help="Filepath of volume of the removed VM.")
+    ] = None,
+    img_dir: Annotated[
+        str,
+        typer.Option('-i', '--img-dir',
+                     help="libvirt image dir.")
+    ] = IMG_DIR,
+    dry_run: Annotated[
+        bool,
+        typer.Option('--dry-run', help="Show the command, but do nothing.")
+    ] = False,
+):
+    for name in names:
+        if fpath is None:
+            fname = "{}/{}-{}.{}".format(img_dir, VOL_PREFIX, name, IMG_EXT)
         else:
-            fname = args.file
+            fname = fpath
 
         cmds = [
             ["sudo", "virsh", "shutdown", name,],
             ["sudo", "virsh", "undefine", name,],
             ["sudo", "rm", fname],
         ]
-        if args.dry_run is not True:
+        if dry_run is not True:
             for cmd in cmds:
                 message(" ".join(cmd))
                 subprocess.run(cmd)
@@ -293,32 +308,36 @@ def _net_dhcp_leases(network="default"):
     return res
 
 
-def list(args):
-    # Print header
-    # print("hostname\tipaddr")
+@app.command()
+def list():
 
     for ent in _net_dhcp_leases():
         print("{}\t{}".format(ent["hostname"],ent["ipaddr"]))
 
 
-def ssh(args):
+@app.command()
+def ssh(
+    destination: str = typer.Argument(help="Destination host."),
+    command: Optional[List[str]] = typer.Argument(
+        None, help="A command run on the destination."),
+):
     user = os.environ["USER"]
-    dest = args.destination.split("@")
+    dest = destination.split("@")
     if len(dest) == 2:
         user = dest[0]
         hostname = dest[1]
     elif len(dest) == 1:
         hostname = dest[0]
     else:
-        print(f"Error: Invalid destination {args.destination!r}.")
+        print(f"Error: Invalid destination {destination!r}.")
         sys.exit()
 
     cmd = []
     for ent in _net_dhcp_leases():
         if hostname == ent["hostname"]:
             cmd = ["ssh", f'{user}@{ent["ipaddr"]}']
-            if args.command is not None:
-                cmd.append(' '.join(args.command))
+            if command is not None:
+                cmd.append(' '.join(command))
             break
     
     if not cmd:
@@ -327,44 +346,61 @@ def ssh(args):
     subprocess.run(cmd)
 
 
-def update_dhcp_host(args):
+@app.command()
+def dhcp_host(
+    command: str = typer.Argument(help="'add', 'delete' or 'modify'."),
+    hostname: str = typer.Argument(help="hostname."),
+    ip: str = typer.Argument(help="IP address."),
+    network: Annotated[
+        str,
+        typer.Option('-n', '--network', help="Name of network managed by libvirt.")
+    ] = "default",
+    mac: Annotated[
+        str,
+        typer.Option('--mac', help="Specify MAC address instead of retrieving from DHCP entry.")
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option('--dry-run', help="Show the command, but do nothing.")
+    ] = False,
+):
     section = "ip-dhcp-host"
 
-    cmd = ["sudo", "virsh", "net-update", args.network, args.command, section]
+    cmd = ["sudo", "virsh", "net-update", network, command, section]
 
     mac = None
     for ent in _net_dhcp_leases():
-        if ent["hostname"] == args.hostname:
+        if ent["hostname"] == hostname:
             mac = ent["mac"]
 
-    if args.command == "add":
-        cmd.append("<host mac=\"{}\" ip=\"{}\"/>".format(mac, args.ip))
+    if command == "add":
+        cmd.append("<host mac=\"{}\" ip=\"{}\"/>".format(mac, ip))
 
-    elif args.command == "delete" or args.command == "modify":
+    elif command == "delete" or command == "modify":
         ipaddr = None
-        cmd_xml = ["sudo", "virsh", "net-dumpxml", args.network]
+        cmd_xml = ["sudo", "virsh", "net-dumpxml", network]
         entries = (subprocess.check_output(cmd_xml, text=True))
         xmlent = et.fromstring(entries)
         try:
             for elem in xmlent.findall("./ip/dhcp/host"):
                 if mac == elem.get("mac"):
-                    if args.command == "delete":
+                    if command == "delete":
                         ipaddr = elem.get("ip")
                     else:
-                        ipaddr = args.ip
+                        ipaddr = ip
 
-                elif args.mac == elem.get("mac"):
-                    if args.command == "delete":
+                elif mac == elem.get("mac"):
+                    if command == "delete":
                         ipaddr = elem.get("ip")
                     else:
-                        ipaddr = args.ip
-                    mac = args.mac
+                        ipaddr = ip
+                    mac = mac
 
             if ipaddr is None:
                 print("FAILED: MAC address {!r} of host {!r}".format(
-                        mac, args.hostname),
+                        mac, hostname),
                       "not found in the net definition.",
-                      "You can find the address with `virsh net-dumpxml {}`".format(args.network),
+                      "You can find the address with `virsh net-dumpxml {}`".format(network),
                       "and specify with --mac option.")
                 sys.exit(1)
         except Exception as e:
@@ -373,13 +409,13 @@ def update_dhcp_host(args):
         cmd.append("<host mac=\"{}\" ip=\"{}\"/>".format(mac, ipaddr))
 
     else:
-        print("Error: Invalid command {!r}.".format(args.method))
+        print("Error: Invalid command {!r}.".format(command))
         sys.exit(1)
 
     cmd.append("--live")
     cmd.append("--config")
 
-    if args.dry_run is not True:
+    if dry_run is not True:
         message(" ".join(cmd))
         subprocess.run(cmd)
     else:
@@ -388,13 +424,7 @@ def update_dhcp_host(args):
 
 def main():
     _check_required_cmds()
-
-    p = get_parser()
-    args = p.parse_args()
-    if args == argparse.Namespace():
-        p.parse_args(['--help'])
-    else:
-        args.func(args)
+    app()
 
 if __name__ == "__main__":
     main()
